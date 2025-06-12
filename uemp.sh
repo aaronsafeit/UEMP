@@ -4,6 +4,7 @@ Licensed under the MIT License. See LICENSE file for details.
 
 #!/bin/bash
 
+
 # Exit on error
 set -e
 
@@ -52,8 +53,7 @@ sudo apt install -y \
   $PHP_VERSION-soap \
   $PHP_VERSION-intl \
   $PHP_VERSION-zip \
-  ufw \
-  dialog
+  ufw
 
 # Configure UFW firewall
 echo "Configuring UFW firewall..."
@@ -110,7 +110,23 @@ sudo bash -c "cat > /etc/nginx/sites-available/wordpress <<EOL
 server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN;
+    return 301 https://\$host\$request_uri;
+}
+EOL"
+
+sudo bash -c "cat > /etc/nginx/sites-available/wordpress_ssl <<EOL
+server {
+    listen 443 ssl;
+    server_name $DOMAIN www.$DOMAIN;
     root /var/www/wordpress;
+
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384';
+    ssl_prefer_server_ciphers off;
+
+    add_header Strict-Transport-Security 'max-age=31536000; includeSubDomains' always;
 
     index index.php index.html index.htm;
 
@@ -132,6 +148,7 @@ server {
 EOL"
 
 sudo ln -s /etc/nginx/sites-available/wordpress /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/wordpress_ssl /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 
